@@ -19,7 +19,7 @@ script_mode = 1 #1 LOITER , 2 ALT_HOLD
 counter = 0
 
 # CAMERA PARAMETERS ----------------------------------------------
-W = 720
+W = 640
 H = 480
 HFOV = np.deg2rad(87)
 VFOV = np.deg2rad(58)
@@ -33,7 +33,7 @@ cy_img = H / 2
 max_pitch = np.deg2rad(45)
 max_roll  = np.deg2rad(45)
 px_error_threshold = 0.1
-target_alt = 15
+target_alt = 10
 
 if script_mode == 1:
     throttle_descent = 1400
@@ -43,15 +43,15 @@ if script_mode == 1:
     Kp_y = max_pitch*0.85
     throttle_takeoff = 1750
     mode = "LOITER"
-    terminal_altitude = 10
+    terminal_altitude = 5
 
 elif script_mode == 2:
     throttle_descent = 1400
     throttle_approach = 1000
     pwm_center = 1500
-    Kp_x = max_roll*0.2
-    Kp_y = max_pitch*0.2
-    throttle_takeoff = 1800
+    Kp_x = max_roll*0.3
+    Kp_y = max_pitch*0.3
+    throttle_takeoff = 1750
     mode = "ALT_HOLD"
     terminal_altitude = 1
 
@@ -202,7 +202,7 @@ def main():
     while latest_frame is None:
         pass
 
-    frame = cv2.resize(latest_frame, (720, 480))
+    frame = latest_frame
     prev_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
     cv2.namedWindow("Tracker")
@@ -226,8 +226,7 @@ def main():
         # If no new frame, continue loop
         if latest_frame is None:
             continue
-        
-        frame = cv2.resize(latest_frame, (720, 480))
+        frame = latest_frame
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         alt = current_alt(vehicle)
@@ -256,8 +255,8 @@ def main():
                 cy = int(y)
 
                 # Crosshair
-                size_x = 720
-                size_y = 480
+                size_x = 200
+                size_y = 150
                 color = (255, 0, 255) 
                 thickness = 2
                 cv2.line(frame, (cx - size_x, cy), (cx + size_x, cy), color, thickness)
@@ -271,8 +270,10 @@ def main():
                 error_x = (cx - cx_img)/cx_img
                 error_y = (cy - cy_img)/cy_img
 
-                pitch_cmd = -Kp_x * error_x
-                roll_cmd = Kp_y * error_y
+                # pitch_cmd = -(Kp_x * error_x)
+                # roll_cmd = Kp_y * error_y
+                pitch_cmd = -(Kp_y * error_y)
+                roll_cmd = -(Kp_x * error_x)
 
                 rc_roll = cmd_to_rc(roll_cmd)
                 rc_pitch = cmd_to_rc(pitch_cmd)
@@ -284,7 +285,7 @@ def main():
                         rc_override(vehicle, rc_roll, rc_pitch,pwm_center)
                         print("aligning to target...")
                     elif aligned:
-                        rc_override(vehicle, rc_roll, rc_pitch, throttle_approach)
+                        rc_override(vehicle, 0, 0, 1000)
                         print("target aligned!")
 
                 else:
