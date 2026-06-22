@@ -15,7 +15,7 @@ import time
 target_point = None
 new_target = False
 
-script_mode = 1 #1 LOITER , 2 ALT_HOLD
+script_mode = 2 #1 LOITER , 2 ALT_HOLD
 counter = 0
 
 # CAMERA PARAMETERS ----------------------------------------------
@@ -32,8 +32,8 @@ cy_img = H / 2
 
 max_pitch = np.deg2rad(45)
 max_roll  = np.deg2rad(45)
-px_error_threshold = 0.1
 target_alt = 10
+cam_orientation = 0 #0 downward, 1 45deg forward
 
 if script_mode == 1:
     throttle_descent = 1400
@@ -44,16 +44,18 @@ if script_mode == 1:
     throttle_takeoff = 1750
     mode = "LOITER"
     terminal_altitude = 5
+    px_error_threshold = 0.1
 
 elif script_mode == 2:
     throttle_descent = 1400
     throttle_approach = 1000
     pwm_center = 1500
-    Kp_x = max_roll*0.3
-    Kp_y = max_pitch*0.3
+    Kp_x = max_roll*0.4
+    Kp_y = max_pitch*0.4
     throttle_takeoff = 1750
     mode = "ALT_HOLD"
-    terminal_altitude = 1
+    terminal_altitude = 5
+    px_error_threshold = 0.2
 
 # Global frame (no queue)
 latest_frame = None
@@ -267,16 +269,16 @@ def main():
                 Pose, Orientation = compute_pose(cx, cy, alt)
                 print(f"Pose: {Pose}, Orientation: {Orientation}")
 
-                error_x = (cx - cx_img)/cx_img
-                error_y = (cy - cy_img)/cy_img
+                if cam_orientation == 0:
+                    error_x = (cx - cx_img)/cx_img
+                    error_y = (cy - cy_img)/cy_img
 
-                # pitch_cmd = -(Kp_x * error_x)
-                # roll_cmd = Kp_y * error_y
-                pitch_cmd = -(Kp_y * error_y)
-                roll_cmd = -(Kp_x * error_x)
+                    pitch_cmd = (Kp_y * error_y)
+                    roll_cmd = (Kp_x * error_x)
 
-                rc_roll = cmd_to_rc(roll_cmd)
-                rc_pitch = cmd_to_rc(pitch_cmd)
+                    rc_roll = cmd_to_rc(roll_cmd)
+                    rc_pitch = cmd_to_rc(pitch_cmd)
+
                 print(f"RC Roll={rc_roll}, Pitch={rc_pitch}")
                 aligned = (abs(error_x) < px_error_threshold) and (abs(error_y) < px_error_threshold)  
 
@@ -295,7 +297,7 @@ def main():
             else:
                 tracking = False
 
-        cv2.imshow("Tracker", frame)
+        cv2.imshow("Tracker",frame)
         prev_gray = gray.copy()
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
