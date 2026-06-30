@@ -17,7 +17,7 @@ import math
 target_point = None
 new_target = False
 
-script_mode = 2 #1 LOITER , 2 ALT_HOLD
+script_mode = 2 #1 LOITER , 2 ALT_HOLD #Trial
 counter = 0
 
 # CAMERA PARAMETERS ----------------------------------------------
@@ -37,6 +37,7 @@ max_roll  = np.deg2rad(45)
 target_alt = 20
 cam_orientation = 1 #0 downward, 1 45deg forward
 theta = np.deg2rad(45.0) # camera tilt angle
+target_radius = 30 #meters
 
 if script_mode == 1:
     throttle_descent = 1400
@@ -54,9 +55,9 @@ elif script_mode == 2:
     Kp_y = max_pitch*1.6
     Kp_z = -2
     mode = "ALT_HOLD"
-    terminal_altitude = 10
-    px_error_threshold = 0.15
-    angle_threshold = 0.15
+    terminal_altitude = 15
+    px_error_threshold = 0.1
+    angle_threshold = 0.1
 
 elif script_mode == 3:
     pwm_center = 1500
@@ -365,18 +366,21 @@ def main():
                     # Approximate line-of-sight distance
 
                     print(f"Normal Distance: {slant_dist:.2f} m Horizontal Distance: {horizontal_dist:.2f} m View Angle: {np.degrees(view_angle):.2f} deg")
-                    aligned = (abs(x_angle) < math.radians(2.0) and abs(theta2 - theta) < math.radians(1.0))
+                    print(f"RC Roll={rc_roll}, Pitch={rc_pitch}, Throttle={rc_throttle}, Altitude={alt:.2f} m")
                     if not xy_aligned:
                         rc_override(vehicle,rc_roll,rc_pitch,rc_throttle)
-                        print(f"RC Roll={rc_roll}, Pitch={rc_pitch}, Throttle={rc_throttle}, Altitude={alt:.2f} m")
-                    elif not aligned_angle:
-                        rc_override(vehicle,rc_roll,rc_pitch,rc_throttle)
-                        print(f"RC Roll={rc_roll}, Pitch={rc_pitch}, Throttle={rc_throttle}, Altitude={alt:.2f} m")
 
-                    if horizontal_dist < 40:
+                    if not aligned_angle:
+                        rc_override(vehicle,rc_roll,rc_pitch,rc_throttle)
+                        
+                    if horizontal_dist < target_radius:
                         VehicleMode(vehicle, "STABILIZE")
-                        rc_override(vehicle, rc_roll,rc_pitch,1200)
+                        rc_override(vehicle, int(rc_roll*0.2), int(rc_pitch*0.2), 1000)
                         print("Target aligned and landing!")
+                        if alt <= terminal_altitude:
+                            force_disarm(vehicle)
+                            print("Target aligned and disarmed!")
+                            break
                         
             else:
                 tracking = False
